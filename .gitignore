@@ -1,0 +1,36 @@
+# Runtime state files - not tracked in version control
+memory/daemon.pid
+memory/daemon_state.json
+memory/daemon.stdout.log
+memory/daemon.stderr.log
+memory/activity.log
+memory/session_id
+memory/work_log.jsonl
+memory/chat_history.jsonl
+memory/inbox.jsonl
+memory/outbox.jsonl
+memory/calibrations/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+.hg/
