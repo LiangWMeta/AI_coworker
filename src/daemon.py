@@ -39,19 +39,39 @@ _gchat_space = None      # GChat space ID for notifications
 # --- Communication (GChat-first, file-fallback) ---
 
 def notify(message: str, priority: str = "info") -> None:
-    """Send notification — via GChat DM if possible, else file outbox."""
+    """Send notification — via GChat, splitting long messages into chunks."""
     log_activity("NOTIFY", f"[{priority}] {message[:100]}")
 
-    # Try GChat first
     if _gchat_space:
-        chat_msg = message[:2000]
+        prefix = ""
         if priority == "urgent":
-            chat_msg = f"*URGENT*: {chat_msg}"
+            prefix = "*URGENT*: "
         elif priority == "important":
-            chat_msg = f"*Note*: {chat_msg}"
+            prefix = "*Note*: "
 
-        sent = gchat.send_to(_gchat_space, chat_msg)
-        if sent:
+        full_msg = prefix + message
+        # Split into chunks of ~4000 chars (GChat limit is ~4096)
+        CHUNK_SIZE = 4000
+        chunks = []
+        while full_msg:
+            if len(full_msg) <= CHUNK_SIZE:
+                chunks.append(full_msg)
+                break
+            # Find a good break point (newline or space)
+            cut = full_msg.rfind("\n", 0, CHUNK_SIZE)
+            if cut < CHUNK_SIZE // 2:
+                cut = full_msg.rfind(" ", 0, CHUNK_SIZE)
+            if cut < CHUNK_SIZE // 2:
+                cut = CHUNK_SIZE
+            chunks.append(full_msg[:cut])
+            full_msg = full_msg[cut:].lstrip()
+
+        all_sent = True
+        for chunk in chunks:
+            if not gchat.send_to(_gchat_space, chunk):
+                all_sent = False
+                break
+        if all_sent:
             return
 
     # Fallback to file outbox
@@ -388,7 +408,7 @@ def run_daemon(repo_path: str, owner: str = "liangwang", gchat_space: str = "AAQ
                     log_work(user_text, result)
 
                     if result.success:
-                        notify(result.text[:2000], "info")
+                        notify(result.text, "info")
                     else:
                         notify(f"Sorry, I hit an error: {result.error}", "important")
 
@@ -404,7 +424,7 @@ def run_daemon(repo_path: str, owner: str = "liangwang", gchat_space: str = "AAQ
                     log_work(user_text, result)
 
                     if result.success:
-                        notify(f"Re: {user_text[:50]}...\n{result.text[:1500]}", "info")
+                        notify(f"Re: {user_text[:50]}...\n{result.text}", "info")
                     else:
                         notify(f"Failed on: {user_text[:50]}... Error: {result.error}", "important")
 
@@ -439,7 +459,7 @@ def run_daemon(repo_path: str, owner: str = "liangwang", gchat_space: str = "AAQ
                         log_work(task, result)
 
                         if result.success:
-                            notify(f"Completed: {task}\n{result.text[:500]}", "info")
+                            notify(f"Completed: {task}\n{result.text}", "info")
                         else:
                             log_activity("ERROR", f"Failed: {task}", result.error or "")
 
